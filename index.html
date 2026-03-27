@@ -34,7 +34,12 @@
       font-weight:400;
       letter-spacing:3px;
       text-transform:uppercase;
-      color:#a855f7; /* mesmo tom do botão — interior some no fundo */
+      color:#a855f7;
+      text-shadow:
+        1px  0px 0 #000,
+       -1px  0px 0 #000,
+        0px  1px 0 #000,
+        0px -1px 0 #000;
       background:linear-gradient(135deg, #c084fc 0%, #a855f7 35%, #7c3aed 65%, #c084fc 100%);
       clip-path:polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%);
       transition:filter .2s, transform .15s;
