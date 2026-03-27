@@ -12,22 +12,97 @@
       position:fixed;inset:0;
       background:url('capateste4.png') center top/cover no-repeat;
       display:flex;flex-direction:column;align-items:center;justify-content:center;
-      gap:18px;z-index:10;
+      gap:22px;z-index:10;
     }
     #landing::before{content:'';position:absolute;inset:0;
-      background:linear-gradient(to bottom,rgba(0,0,0,.08),rgba(0,0,0,.5))}
-    .btn{position:relative;z-index:1;width:240px;padding:16px 0;border:none;
-      border-radius:6px;font-size:1.25rem;font-family:'Impact','Arial Black',sans-serif;
-      letter-spacing:2px;text-transform:uppercase;cursor:pointer;
-      transition:transform .12s,box-shadow .12s;
-      box-shadow:4px 4px 0 #000,0 0 0 3px #000;outline:none}
-    .btn:active{transform:translate(2px,2px);box-shadow:2px 2px 0 #000,0 0 0 3px #000}
-    .btn-ler    {background:#ffe100;color:#000}
-    .btn-ler:hover{background:#ffd000;transform:translate(-1px,-2px);box-shadow:5px 6px 0 #000,0 0 0 3px #000}
-    .btn-doar   {background:#ff3c00;color:#fff}
-    .btn-doar:hover{background:#e03300;transform:translate(-1px,-2px);box-shadow:5px 6px 0 #000,0 0 0 3px #000}
-    .btn-comprar{background:#1a1aff;color:#fff}
-    .btn-comprar:hover{background:#1111dd;transform:translate(-1px,-2px);box-shadow:5px 6px 0 #000,0 0 0 3px #000}
+      background:linear-gradient(to bottom,rgba(0,0,0,.08),rgba(0,0,0,.62))}
+
+    /* ── NEO-TECH BUTTON SYSTEM ── */
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap');
+
+    .btn-wrap{position:relative;z-index:1;width:260px}
+
+    .btn{
+      position:relative;
+      width:100%;
+      padding:15px 0;
+      border:none;
+      outline:none;
+      cursor:pointer;
+      font-family:'Orbitron','Impact',sans-serif;
+      font-size:.88rem;
+      font-weight:900;
+      letter-spacing:3px;
+      text-transform:uppercase;
+      color:#0a000f;
+      background:linear-gradient(135deg, #c084fc 0%, #a855f7 35%, #7c3aed 65%, #c084fc 100%);
+      background-size:200% 200%;
+      clip-path:polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%);
+      transition:background-position .4s, filter .2s, transform .15s;
+      filter:drop-shadow(0 0 8px rgba(168,85,247,.7)) drop-shadow(0 0 20px rgba(168,85,247,.35));
+    }
+
+    /* scan-line shimmer overlay */
+    .btn::before{
+      content:'';
+      position:absolute;inset:0;
+      background:repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(0,0,0,0.07) 3px,
+        rgba(0,0,0,0.07) 4px
+      );
+      pointer-events:none;
+    }
+
+    /* animated top border glow line */
+    .btn::after{
+      content:'';
+      position:absolute;
+      top:0;left:10%;
+      width:80%;height:2px;
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,.9),transparent);
+      opacity:.7;
+    }
+
+    .btn:hover{
+      background-position:100% 100%;
+      filter:drop-shadow(0 0 14px rgba(192,132,252,1)) drop-shadow(0 0 36px rgba(168,85,247,.6));
+      transform:translateY(-2px) scaleX(1.02);
+    }
+    .btn:active{
+      transform:translateY(1px) scaleX(.99);
+      filter:drop-shadow(0 0 6px rgba(168,85,247,.5));
+    }
+
+    /* corner tick marks */
+    .btn-wrap::before,
+    .btn-wrap::after{
+      content:'';
+      position:absolute;
+      width:8px;height:8px;
+      border-color:#e879f9;
+      border-style:solid;
+      z-index:2;
+      pointer-events:none;
+    }
+    .btn-wrap::before{top:-3px;left:14px;border-width:2px 0 0 2px;}
+    .btn-wrap::after {bottom:-3px;right:14px;border-width:0 2px 2px 0;}
+
+    /* label text inside button — small tech tag above */
+    .btn-tag{
+      display:block;
+      font-family:'Orbitron','Impact',sans-serif;
+      font-size:.55rem;
+      letter-spacing:4px;
+      color:#d946ef;
+      text-align:right;
+      padding-right:20px;
+      margin-bottom:2px;
+      opacity:.8;
+      text-shadow:0 0 8px #d946ef;
+    }
 
     #reader{position:fixed;inset:0;background:#0d0d0d;z-index:100;display:none;touch-action:none}
     #reader.active{display:block}
@@ -53,9 +128,18 @@
 <body>
 
 <div id="landing">
-  <button class="btn btn-ler"     onclick="openReader()">Ler HQ</button>
-  <button class="btn btn-comprar" onclick="handleComprar()">Comprar</button>
-  <button class="btn btn-doar"    onclick="handleDoar()">Doar para o Projeto</button>
+  <div class="btn-wrap">
+    <span class="btn-tag">// LEITURA</span>
+    <button class="btn" onclick="openReader()">Ler HQ</button>
+  </div>
+  <div class="btn-wrap">
+    <span class="btn-tag">// AQUISIÇÃO</span>
+    <button class="btn" onclick="handleComprar()">Comprar</button>
+  </div>
+  <div class="btn-wrap">
+    <span class="btn-tag">// SUPORTE</span>
+    <button class="btn" onclick="handleDoar()">Doar para o Projeto</button>
+  </div>
 </div>
 
 <div id="reader"><canvas id="flip-canvas"></canvas></div>
