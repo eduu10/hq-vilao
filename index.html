@@ -6,205 +6,90 @@
   <title>HQ Vilão</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      font-family: 'Impact', 'Arial Black', sans-serif;
-    }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Impact','Arial Black',sans-serif; }
 
     /* ─── LANDING ─── */
     #landing {
-      position: fixed;
-      inset: 0;
-      background-image: url('capateste4.png');
-      background-size: cover;
-      background-position: center top;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 18px;
-      z-index: 10;
+      position: fixed; inset: 0;
+      background: url('capateste4.png') center top / cover no-repeat;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 18px; z-index: 10;
     }
     #landing::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.5) 100%);
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(to bottom, rgba(0,0,0,.08), rgba(0,0,0,.5));
     }
-
     .btn {
-      position: relative;
-      z-index: 1;
-      width: 240px;
-      padding: 16px 0;
-      border: none;
-      border-radius: 6px;
-      font-size: 1.25rem;
-      font-family: 'Impact', 'Arial Black', sans-serif;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: transform 0.12s, box-shadow 0.12s;
-      box-shadow: 4px 4px 0 #000, 0 0 0 3px #000;
-      outline: none;
+      position: relative; z-index: 1; width: 240px; padding: 16px 0;
+      border: none; border-radius: 6px; font-size: 1.25rem;
+      font-family: 'Impact','Arial Black',sans-serif; letter-spacing: 2px;
+      text-transform: uppercase; cursor: pointer;
+      transition: transform .12s, box-shadow .12s;
+      box-shadow: 4px 4px 0 #000, 0 0 0 3px #000; outline: none;
     }
     .btn:active { transform: translate(2px,2px); box-shadow: 2px 2px 0 #000, 0 0 0 3px #000; }
-    .btn-ler     { background: #ffe100; color: #000; }
-    .btn-ler:hover { background: #ffd000; transform: translate(-1px,-2px); box-shadow: 5px 6px 0 #000, 0 0 0 3px #000; }
-    .btn-doar    { background: #ff3c00; color: #fff; }
-    .btn-doar:hover { background: #e03300; transform: translate(-1px,-2px); box-shadow: 5px 6px 0 #000, 0 0 0 3px #000; }
-    .btn-comprar { background: #1a1aff; color: #fff; }
-    .btn-comprar:hover { background: #1111dd; transform: translate(-1px,-2px); box-shadow: 5px 6px 0 #000, 0 0 0 3px #000; }
+    .btn-ler     { background:#ffe100; color:#000; }
+    .btn-ler:hover { background:#ffd000; transform:translate(-1px,-2px); box-shadow:5px 6px 0 #000,0 0 0 3px #000; }
+    .btn-doar    { background:#ff3c00; color:#fff; }
+    .btn-doar:hover { background:#e03300; transform:translate(-1px,-2px); box-shadow:5px 6px 0 #000,0 0 0 3px #000; }
+    .btn-comprar { background:#1a1aff; color:#fff; }
+    .btn-comprar:hover { background:#1111dd; transform:translate(-1px,-2px); box-shadow:5px 6px 0 #000,0 0 0 3px #000; }
 
     /* ─── READER ─── */
     #reader {
-      position: fixed;
-      inset: 0;
-      background: #111;
-      z-index: 100;
-      display: none;
-      overflow: hidden;
-      touch-action: none;
+      position: fixed; inset: 0; background: #111;
+      z-index: 100; display: none; touch-action: none;
     }
     #reader.active { display: block; }
 
-    /*
-      Stage: the viewport where pages live.
-      Two pages sit side by side inside it:
-        • #page-a  (left slot  = currently visible)
-        • #page-b  (right slot = incoming page)
-      We translate the stage to slide them.
-    */
-    #stage {
-      position: absolute;
-      /* 200% wide so both pages fit */
-      width: 200%;
-      height: 100%;
-      display: flex;
-      will-change: transform;
-    }
-
-    .page-slot {
-      width: 50%;   /* each slot = 100vw */
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .page-slot img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-      user-select: none;
-      -webkit-user-drag: none;
-      pointer-events: none;
+    #flip-canvas {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
       display: block;
     }
 
-    /* fold shadow overlay on right edge of page-a while dragging */
-    #page-a::after {
-      content: '';
-      position: absolute;
-      right: 0;
-      top: 0;
-      width: 0;
-      height: 100%;
-      background: linear-gradient(to left, rgba(0,0,0,0.55), transparent);
-      pointer-events: none;
-      transition: width 0.05s;
-    }
-    #stage.dragging #page-a::after { width: 60px; }
-
-    /* close btn */
+    /* UI chrome */
     #close-btn {
-      position: fixed;
-      top: 14px;
-      right: 18px;
-      z-index: 200;
-      background: rgba(0,0,0,0.75);
-      color: #ffe100;
-      border: 2px solid #ffe100;
-      border-radius: 50%;
-      width: 42px;
-      height: 42px;
-      font-size: 1.4rem;
-      cursor: pointer;
-      align-items: center;
-      justify-content: center;
-      font-family: Arial, sans-serif;
-      display: none;
+      position: fixed; top: 14px; right: 18px; z-index: 200;
+      background: rgba(0,0,0,.75); color: #ffe100;
+      border: 2px solid #ffe100; border-radius: 50%;
+      width: 42px; height: 42px; font-size: 1.4rem; cursor: pointer;
+      align-items: center; justify-content: center;
+      font-family: Arial,sans-serif; display: none;
     }
     #close-btn.visible { display: flex; }
 
-    /* counter */
     #page-counter {
-      position: fixed;
-      bottom: 14px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 200;
-      background: rgba(0,0,0,0.65);
-      color: #fff;
-      border-radius: 20px;
-      padding: 5px 18px;
-      font-size: 0.85rem;
-      font-family: Arial, sans-serif;
-      letter-spacing: 1px;
-      display: none;
-      white-space: nowrap;
+      position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+      z-index: 200; background: rgba(0,0,0,.65); color: #fff;
+      border-radius: 20px; padding: 5px 18px; font-size: .85rem;
+      font-family: Arial,sans-serif; letter-spacing: 1px;
+      display: none; white-space: nowrap;
     }
     #page-counter.visible { display: block; }
 
-    /* hint */
     #hint {
-      position: fixed;
-      bottom: 50px;
-      right: 24px;
-      z-index: 200;
-      color: rgba(255,255,255,0.5);
-      font-size: 2rem;
-      font-family: Arial, sans-serif;
-      animation: hintBounce 1.2s infinite ease-in-out;
-      pointer-events: none;
-      display: none;
+      position: fixed; bottom: 50px; right: 24px; z-index: 200;
+      color: rgba(255,255,255,.5); font-size: 2rem; font-family: Arial,sans-serif;
+      animation: hintBounce 1.2s infinite ease-in-out; pointer-events: none; display: none;
     }
     #hint.visible { display: block; }
     @keyframes hintBounce {
-      0%,100% { transform: translateX(0); }
-      50%      { transform: translateX(-10px); }
+      0%,100% { transform:translateX(0); }
+      50%      { transform:translateX(-10px); }
     }
-
-    /* open animation */
-    @keyframes openBook {
-      0%   { transform: scale(0.05) rotate(-8deg); opacity: 0; }
-      60%  { transform: scale(1.04) rotate(1deg);  opacity: 1; }
-      100% { transform: scale(1)    rotate(0deg);  opacity: 1; }
-    }
-    .open-anim { animation: openBook 0.5s cubic-bezier(0.22,1,0.36,1) forwards; }
   </style>
 </head>
 <body>
 
-<!-- LANDING -->
 <div id="landing">
   <button class="btn btn-ler"     onclick="openReader()">Ler HQ</button>
   <button class="btn btn-comprar" onclick="handleComprar()">Comprar</button>
   <button class="btn btn-doar"    onclick="handleDoar()">Doar para o Projeto</button>
 </div>
 
-<!-- READER -->
 <div id="reader">
-  <div id="stage">
-    <div class="page-slot" id="page-a"><img id="img-a" src="" alt=""></div>
-    <div class="page-slot" id="page-b"><img id="img-b" src="" alt=""></div>
-  </div>
+  <canvas id="flip-canvas"></canvas>
 </div>
 
 <button id="close-btn" onclick="closeReader()">✕</button>
@@ -212,122 +97,316 @@
 <div id="hint">←</div>
 
 <script>
-const pages = [
-  'capateste4.png',
-  'capa1.png',
-  'capateste2.png',
-  'capateste3.png'
-];
+/* ═══════════════════════════════════════════════════════════
+   PAGE FLIP ENGINE  —  canvas 2D with 3-D fold illusion
+   ═══════════════════════════════════════════════════════════ */
 
-let cur        = 0;      // current page index
-let busy       = false;  // animation in progress
+const PAGES = ['capateste4.png','capa1.png','capateste2.png','capateste3.png'];
+
+/* preload all images */
+const imgs = PAGES.map(src => { const i = new Image(); i.src = src; return i; });
+
+let cur    = 0;
+let busy   = false;
 
 const readerEl  = document.getElementById('reader');
-const stageEl   = document.getElementById('stage');
-const imgA      = document.getElementById('img-a');
-const imgB      = document.getElementById('img-b');
+const canvas    = document.getElementById('flip-canvas');
+const ctx       = canvas.getContext('2d');
 const closeBtn  = document.getElementById('close-btn');
 const counterEl = document.getElementById('page-counter');
 const hintEl    = document.getElementById('hint');
 
-/* ─── helpers ─── */
-function setCounter() {
-  counterEl.textContent = `${cur + 1} / ${pages.length}`;
+/* ── resize canvas ── */
+function resize() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  drawStatic();
 }
+window.addEventListener('resize', resize);
 
+/* ── helpers ── */
+function setCounter() { counterEl.textContent = `${cur+1} / ${PAGES.length}`; }
 function updateHint() {
-  if (cur < pages.length - 1) hintEl.classList.add('visible');
-  else hintEl.classList.remove('visible');
+  cur < PAGES.length-1 ? hintEl.classList.add('visible') : hintEl.classList.remove('visible');
 }
 
-/* Reset stage to show page-a (left slot) at full screen */
-function resetStage(animated) {
-  stageEl.style.transition = animated ? 'transform 0.32s cubic-bezier(0.4,0,0.2,1)' : 'none';
-  stageEl.style.transform  = 'translateX(0)';
+/* ── fit image into canvas keeping aspect ratio ── */
+function imgRect(img) {
+  const cw = canvas.width, ch = canvas.height;
+  const scale = Math.min(cw / img.naturalWidth, ch / img.naturalHeight);
+  const w = img.naturalWidth  * scale;
+  const h = img.naturalHeight * scale;
+  return { x:(cw-w)/2, y:(ch-h)/2, w, h };
 }
 
-/* ─── open / close ─── */
+/* ── draw a single page image centred ── */
+function drawPage(img) {
+  if (!img || !img.complete || !img.naturalWidth) return;
+  const {x,y,w,h} = imgRect(img);
+  ctx.drawImage(img, x, y, w, h);
+}
+
+/* ── draw idle state (just cur page) ── */
+function drawStatic() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  drawPage(imgs[cur]);
+}
+
+/* ══════════════════════════════════════════════════════
+   FLIP RENDERING
+   ──────────────────────────────────────────────────────
+   progress  0 → 1   forward  (cur → cur+1)
+   progress  0 → -1  backward (cur → cur-1)
+
+   Visual model (forward flip, left‑to‑right page turn):
+   • The entire current page acts as a "sheet".
+   • The sheet folds around a vertical crease that moves
+     from right edge (progress=0) to left edge (progress=1).
+   • Left half of sheet slides away; right half of sheet
+     is the folded flap showing the NEXT page mirrored.
+   • Behind the sheet the next page is revealed.
+
+   We fake 3‑D by:
+     1. Drawing next page underneath (full width).
+     2. Drawing the "already turned" left portion of cur page.
+     3. Computing a trapezoid for the folding flap:
+        - left edge = crease x position (moves left)
+        - right edge = full right side, compressed vertically
+          (perspective: far edge shrinks)
+     4. Clipping & drawing cur page onto the flap.
+     5. Adding highlight/shadow gradients.
+   ══════════════════════════════════════════════════════ */
+
+function drawFlip(progress) {
+  /* progress: 0=not started, 1=fully flipped forward, -1=fully flipped back */
+  const W  = canvas.width;
+  const H  = canvas.height;
+  const fwd = progress >= 0;
+  const t   = Math.abs(progress);          /* 0..1 */
+
+  const nextIdx = fwd ? cur+1 : cur-1;
+  const curImg  = imgs[cur];
+  const nxtImg  = imgs[nextIdx];
+
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0,0,W,H);
+
+  /* ── Layer 0: next page (behind everything) ── */
+  drawPage(nxtImg);
+
+  /* ── compute crease x ──
+     At t=0 crease is at W (right edge), at t=1 crease is at 0 (left edge). */
+  const creaseX = W * (1 - t);
+
+  /* ── Layer 1: left part of current page (already turned — shows next page) ──
+     Only exists when crease has moved past the center, i.e. t > 0.
+     We just let the next page show through (already drawn), so skip.     */
+
+  /* ── Layer 2: right part of current page (not yet turned) ──
+     Clip to [creaseX .. W] and draw cur page. */
+  if (creaseX < W) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(creaseX, 0, W - creaseX, H);
+    ctx.clip();
+    drawPage(curImg);
+    /* soft shadow on left edge of remaining page (depth illusion) */
+    const shW = Math.min(60, (W - creaseX) * 0.18);
+    const shGrad = ctx.createLinearGradient(creaseX, 0, creaseX + shW, 0);
+    shGrad.addColorStop(0,   'rgba(0,0,0,0.55)');
+    shGrad.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = shGrad;
+    ctx.fillRect(creaseX, 0, shW, H);
+    ctx.restore();
+  } else {
+    drawPage(curImg);
+  }
+
+  /* ── Layer 3: the folding flap ──
+     The flap is the portion of the current page that is mid-fold.
+     It's a trapezoid:
+       - Left  edge: creaseX, full height  (the crease)
+       - Right edge: W * (1 - t*0.5) squished vertically by perspective
+
+     As t grows the right edge compresses top+bottom toward the centre.
+     When t=1 the flap has zero width (fully turned). */
+
+  const flapWidth = creaseX * 0.6;  /* how wide the flap appears — tapers to 0 */
+  if (flapWidth > 1) {
+    const perspScale = 1 - t * 0.55;  /* vertical squish at far edge */
+    const flapR      = creaseX;        /* right side of flap = crease */
+    const flapL      = creaseX - flapWidth;
+
+    /* four corners of the trapezoid (the folded flap) */
+    const topL    = (H/2) - (H/2) * perspScale;
+    const botL    = (H/2) + (H/2) * perspScale;
+    const topR    = 0;
+    const botR    = H;
+
+    /* clip to trapezoid */
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(flapL, topL);
+    ctx.lineTo(flapR, topR);
+    ctx.lineTo(flapR, botR);
+    ctx.lineTo(flapL, botL);
+    ctx.closePath();
+    ctx.clip();
+
+    /* draw cur page mapped onto the trapezoid
+       We use a transform to stretch the image into the trapezoid shape.
+       Simple approach: setTransform to map full image into the bounding box,
+       then let the clip mask do the trapezoidal cut. */
+    const {x:ix, y:iy, w:iw, h:ih} = imgRect(curImg);
+
+    /* horizontal scale: map iw → flapWidth */
+    const scaleX = flapWidth / (iw || 1);
+    /* vertical scale: map ih → H (we use full H; clip trims the trapezoid) */
+    const scaleY = 1;
+
+    ctx.save();
+    /* translate so the RIGHT side of the image aligns with creaseX */
+    ctx.translate(flapR - iw * scaleX - ix * scaleX, 0);
+    ctx.scale(scaleX, scaleY);
+    ctx.drawImage(curImg, ix, iy, iw, ih);
+    ctx.restore();
+
+    /* highlight along crease (right edge of flap = bright) */
+    const hlGrad = ctx.createLinearGradient(flapR - 8, 0, flapR, 0);
+    hlGrad.addColorStop(0, 'rgba(255,255,255,0)');
+    hlGrad.addColorStop(1, 'rgba(255,255,255,0.45)');
+    ctx.fillStyle = hlGrad;
+    ctx.fillRect(flapL, 0, flapWidth, H);
+
+    /* shadow on left edge of flap (where it bends away) */
+    const shGrad2 = ctx.createLinearGradient(flapL, 0, flapL + Math.min(40, flapWidth * 0.4), 0);
+    shGrad2.addColorStop(0, 'rgba(0,0,0,0.6)');
+    shGrad2.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = shGrad2;
+    ctx.fillRect(flapL, 0, Math.min(40, flapWidth * 0.4), H);
+
+    ctx.restore();
+  }
+
+  /* ── crease line (thin bright line at fold) ── */
+  if (t > 0.01 && t < 0.99) {
+    ctx.save();
+    const lineGrad = ctx.createLinearGradient(0, 0, 0, H);
+    lineGrad.addColorStop(0,   'rgba(255,255,255,0.15)');
+    lineGrad.addColorStop(0.5, 'rgba(255,255,255,0.55)');
+    lineGrad.addColorStop(1,   'rgba(255,255,255,0.15)');
+    ctx.strokeStyle = lineGrad;
+    ctx.lineWidth   = 2;
+    ctx.beginPath();
+    ctx.moveTo(creaseX, 0);
+    ctx.lineTo(creaseX, H);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* ── cast shadow from crease onto next-page (to the left) ── */
+  if (t > 0.02) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, creaseX, H);
+    ctx.clip();
+    const castW  = Math.min(80, creaseX * 0.3);
+    const castGr = ctx.createLinearGradient(creaseX - castW, 0, creaseX, 0);
+    castGr.addColorStop(0, 'rgba(0,0,0,0)');
+    castGr.addColorStop(1, `rgba(0,0,0,${0.45 * Math.min(1, t * 3)})`);
+    ctx.fillStyle = castGr;
+    ctx.fillRect(creaseX - castW, 0, castW, H);
+    ctx.restore();
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   ANIMATION LOOP
+   ══════════════════════════════════════════════════════ */
+let animRaf     = null;
+let animFrom    = 0;   /* progress at animation start */
+let animTo      = 0;   /* target progress */
+let animStart   = 0;   /* timestamp */
+const ANIM_MS   = 380;
+
+function animateTo(from, to, onDone) {
+  cancelAnimationFrame(animRaf);
+  animFrom  = from;
+  animTo    = to;
+  animStart = performance.now();
+
+  function step(now) {
+    const elapsed = now - animStart;
+    const raw = elapsed / ANIM_MS;
+    /* ease out cubic */
+    const eased = 1 - Math.pow(1 - Math.min(raw, 1), 3);
+    const progress = animFrom + (animTo - animFrom) * eased;
+    drawFlip(progress);
+    if (raw < 1) {
+      animRaf = requestAnimationFrame(step);
+    } else {
+      drawFlip(animTo);
+      onDone();
+    }
+  }
+  animRaf = requestAnimationFrame(step);
+}
+
+/* ══════════════════════════════════════════════════════
+   OPEN / CLOSE
+   ══════════════════════════════════════════════════════ */
 function openReader() {
   cur = 0;
-  imgA.src = pages[0];
-  imgB.src = '';
-  resetStage(false);
   readerEl.classList.add('active');
   closeBtn.classList.add('visible');
   counterEl.classList.add('visible');
-  hintEl.classList.add('visible');
+  resize();
   setCounter();
   updateHint();
-  // open animation on first page
-  imgA.parentElement.classList.remove('open-anim');
-  void imgA.parentElement.offsetWidth;
-  imgA.parentElement.classList.add('open-anim');
+  /* open animation: zoom in from tiny */
+  let t = 0;
+  const start = performance.now();
+  function openStep(now) {
+    t = Math.min(1, (now - start) / 480);
+    const ease = 1 - Math.pow(1-t, 3);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.save();
+    const scale = 0.05 + 0.95 * ease;
+    const cx = canvas.width/2, cy = canvas.height/2;
+    ctx.translate(cx, cy);
+    ctx.scale(scale, scale);
+    ctx.translate(-cx, -cy);
+    drawPage(imgs[0]);
+    ctx.restore();
+    if (t < 1) requestAnimationFrame(openStep);
+    else { drawStatic(); hintEl.classList.add('visible'); }
+  }
+  requestAnimationFrame(openStep);
 }
 
 function closeReader() {
+  cancelAnimationFrame(animRaf);
+  busy = false;
+  dragging = false;
   readerEl.classList.remove('active');
   closeBtn.classList.remove('visible');
   counterEl.classList.remove('visible');
   hintEl.classList.remove('visible');
-  busy = false;
 }
 
-/* ─── programmatic flip (keyboard) ─── */
-function flipTo(nextIdx, instant) {
-  if (busy) return;
-  if (nextIdx < 0 || nextIdx >= pages.length) return;
-
-  const goForward = nextIdx > cur;
-
-  if (goForward) {
-    // page-b is already at translateX(100vw), load it then slide left
-    imgB.src = pages[nextIdx];
-    stageEl.style.transition = instant ? 'none' : 'transform 0.38s cubic-bezier(0.4,0,0.2,1)';
-    stageEl.style.transform  = 'translateX(-50%)'; // slide left so page-b enters
-  } else {
-    // going back: put prev page in slot B on the LEFT side
-    // Trick: we'll use a different approach — slide right
-    imgB.src = pages[nextIdx];
-    // temporarily position stage so that B is to the left:
-    // stage is 200% wide; if we set it to -50% B is visible, A is off-right
-    stageEl.style.transition = 'none';
-    stageEl.style.transform  = 'translateX(-50%)'; // B visible, A off-screen right
-    // swap: put prev in A, slide back to 0
-    void stageEl.offsetWidth;
-    imgA.src = pages[nextIdx];
-    stageEl.style.transition = instant ? 'none' : 'transform 0.38s cubic-bezier(0.4,0,0.2,1)';
-    stageEl.style.transform  = 'translateX(0)';
-    cur = nextIdx;
-    setCounter();
-    updateHint();
-    return;
-  }
-
-  busy = true;
-  const onEnd = () => {
-    stageEl.removeEventListener('transitionend', onEnd);
-    // after forward flip: promote B → A
-    imgA.src = pages[nextIdx];
-    imgB.src = '';
-    resetStage(false);
-    cur = nextIdx;
-    busy = false;
-    setCounter();
-    updateHint();
-  };
-  if (instant) {
-    onEnd();
-  } else {
-    stageEl.addEventListener('transitionend', onEnd);
-  }
-}
-
-/* ─── drag / swipe ─── */
-let startX   = 0;
-let startY   = 0;
-let dragging = false;
-let dragDir  = 0; // 1 = forward (left), -1 = back (right)
-let liveOffset = 0; // current drag translateX in px (as fraction of full width)
+/* ══════════════════════════════════════════════════════
+   DRAG / SWIPE
+   ══════════════════════════════════════════════════════ */
+let dragging   = false;
+let startX     = 0;
+let startY     = 0;
+let dragDir    = 0;   /* 1=forward -1=back */
+let dragProg   = 0;   /* live progress during drag */
 
 readerEl.addEventListener('pointerdown', onDown, { passive: true });
 readerEl.addEventListener('pointermove', onMove, { passive: true });
@@ -336,15 +415,12 @@ readerEl.addEventListener('pointercancel', onUp);
 
 function onDown(e) {
   if (busy) return;
-  startX     = e.clientX;
-  startY     = e.clientY;
-  dragging   = true;
-  dragDir    = 0;
-  liveOffset = 0;
-  /* reset any stale state */
-  stageEl.style.transition = 'none';
-  stageEl.style.transform  = 'translateX(0)';
-  imgB.src = '';
+  cancelAnimationFrame(animRaf);
+  startX   = e.clientX;
+  startY   = e.clientY;
+  dragging = true;
+  dragDir  = 0;
+  dragProg = 0;
 }
 
 function onMove(e) {
@@ -352,132 +428,68 @@ function onMove(e) {
   const dx = e.clientX - startX;
   const dy = e.clientY - startY;
 
-  /* lock direction once */
   if (dragDir === 0) {
     if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
     if (Math.abs(dy) > Math.abs(dx)) { dragging = false; return; }
     dragDir = dx < 0 ? 1 : -1;
-
-    if (dragDir === 1 && cur >= pages.length - 1) { dragging = false; dragDir = 0; return; }
-    if (dragDir === -1 && cur <= 0)               { dragging = false; dragDir = 0; return; }
-
-    stageEl.classList.add('dragging');
-
-    if (dragDir === 1) {
-      /* forward: preload next page in slot B */
-      imgB.src = pages[cur + 1];
-    } else {
-      /* backward: put prev page in slot A but shift stage to show B first */
-      imgB.src = pages[cur];        // current page goes to B
-      imgA.src = pages[cur - 1];    // prev page in A
-      /* move stage so B (right slot) is visible = translateX(-50%) */
-      stageEl.style.transition = 'none';
-      stageEl.style.transform  = 'translateX(-50%)';
-      liveOffset = -50; // percent
-    }
+    if (dragDir ===  1 && cur >= PAGES.length-1) { dragging = false; dragDir = 0; return; }
+    if (dragDir === -1 && cur <= 0)              { dragging = false; dragDir = 0; return; }
   }
 
-  const W = window.innerWidth;
-
-  if (dragDir === 1) {
-    /* dragging left to go forward: stage goes from 0 → -50% */
-    const pct = Math.max(-50, Math.min(0, (dx / W) * 50));
-    stageEl.style.transition = 'none';
-    stageEl.style.transform  = `translateX(${pct}%)`;
-    liveOffset = pct;
-  } else {
-    /* dragging right to go back: stage goes from -50% → 0 */
-    const pct = Math.max(-50, Math.min(0, -50 + (dx / W) * 50));
-    stageEl.style.transition = 'none';
-    stageEl.style.transform  = `translateX(${pct}%)`;
-    liveOffset = pct;
-  }
+  const W = canvas.width;
+  /* map drag distance to progress 0..1 */
+  dragProg = Math.max(0, Math.min(1, Math.abs(dx) / W));
+  drawFlip(dragDir * dragProg);
 }
 
 function onUp(e) {
   if (!dragging) return;
   dragging = false;
-  stageEl.classList.remove('dragging');
 
-  if (dragDir === 0) {
-    /* ensure stage is clean */
-    stageEl.style.transition = 'none';
-    stageEl.style.transform  = 'translateX(0)';
-    return;
-  }
+  if (dragDir === 0) { drawStatic(); return; }
 
-  const dx    = e.clientX - startX;
-  const W     = window.innerWidth;
-  const ratio = Math.abs(dx) / W;
+  const COMMIT = 0.28;
+  const from   = dragDir * dragProg;
 
-  const COMMIT_THRESHOLD = 0.28;
-
-  if (dragDir === 1) {
-    /* forward */
-    if (ratio >= COMMIT_THRESHOLD) {
-      /* commit: finish sliding to -50% */
-      busy = true;
-      stageEl.style.transition = 'transform 0.3s cubic-bezier(0.4,0,0.2,1)';
-      stageEl.style.transform  = 'translateX(-50%)';
-      stageEl.addEventListener('transitionend', function done() {
-        stageEl.removeEventListener('transitionend', done);
-        cur += 1;
-        imgA.src = pages[cur];
-        imgB.src = '';
-        stageEl.style.transition = 'none';
-        stageEl.style.transform  = 'translateX(0)';
-        busy = false;
-        setCounter();
-        updateHint();
-      });
-    } else {
-      /* cancel: snap back to 0 */
-      stageEl.style.transition = 'transform 0.25s cubic-bezier(0.4,0,0.2,1)';
-      stageEl.style.transform  = 'translateX(0)';
-      imgB.src = '';
-      dragDir  = 0;
-    }
+  if (dragProg >= COMMIT) {
+    /* commit flip */
+    busy = true;
+    animateTo(from, dragDir * 1, () => {
+      cur += dragDir;
+      busy = false;
+      drawStatic();
+      setCounter();
+      updateHint();
+      dragDir = 0;
+    });
   } else {
-    /* backward */
-    if (ratio >= COMMIT_THRESHOLD) {
-      /* commit: finish sliding to 0 (A = prev page is now visible) */
-      stageEl.style.transition = 'transform 0.3s cubic-bezier(0.4,0,0.2,1)';
-      stageEl.style.transform  = 'translateX(0)';
-      stageEl.addEventListener('transitionend', function done() {
-        stageEl.removeEventListener('transitionend', done);
-        cur -= 1;
-        /* imgA already has prev page, clean up B */
-        imgB.src = '';
-        busy = false;
-        setCounter();
-        updateHint();
-      });
-    } else {
-      /* cancel: snap back to -50% (restore current page in B), then swap back */
-      stageEl.style.transition = 'transform 0.25s cubic-bezier(0.4,0,0.2,1)';
-      stageEl.style.transform  = 'translateX(-50%)';
-      stageEl.addEventListener('transitionend', function done() {
-        stageEl.removeEventListener('transitionend', done);
-        /* restore: current page back in A */
-        imgA.src = pages[cur];
-        imgB.src = '';
-        stageEl.style.transition = 'none';
-        stageEl.style.transform  = 'translateX(0)';
-        dragDir = 0;
-      });
-    }
+    /* snap back */
+    animateTo(from, 0, () => {
+      drawStatic();
+      dragDir = 0;
+    });
   }
 }
 
-/* ─── keyboard ─── */
+/* ══════════════════════════════════════════════════════
+   KEYBOARD
+   ══════════════════════════════════════════════════════ */
 document.addEventListener('keydown', e => {
-  if (!readerEl.classList.contains('active')) return;
-  if (e.key === 'ArrowRight' && cur < pages.length - 1) flipTo(cur + 1);
-  if (e.key === 'ArrowLeft'  && cur > 0)                flipTo(cur - 1);
+  if (!readerEl.classList.contains('active') || busy) return;
+  if (e.key === 'ArrowRight' && cur < PAGES.length-1) {
+    busy = true;
+    animateTo(0, 1, () => { cur++; busy = false; drawStatic(); setCounter(); updateHint(); });
+  }
+  if (e.key === 'ArrowLeft' && cur > 0) {
+    busy = true;
+    animateTo(0, -1, () => { cur--; busy = false; drawStatic(); setCounter(); updateHint(); });
+  }
   if (e.key === 'Escape') closeReader();
 });
 
-/* ─── placeholders ─── */
+/* ══════════════════════════════════════════════════════
+   PLACEHOLDERS
+   ══════════════════════════════════════════════════════ */
 function handleDoar()    { alert('Em breve! Obrigado pelo apoio ❤️'); }
 function handleComprar() { alert('Em breve! Fique ligado 🎉'); }
 </script>
