@@ -6,7 +6,7 @@
   <title>HQ Vilão</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    html,body{width:100%;height:100%;overflow:hidden;font-family:'Impact','Arial Black',sans-serif}
+    html,body{width:100%;height:100%;overflow:hidden;font-family:'Impact','Arial Black',sans-serif;background:#0d0d0d}
 
     #landing{
       position:fixed;inset:0;
@@ -36,15 +36,13 @@
     #close-btn{position:fixed;top:14px;right:18px;z-index:200;
       background:rgba(0,0,0,.75);color:#ffe100;border:2px solid #ffe100;
       border-radius:50%;width:42px;height:42px;font-size:1.4rem;cursor:pointer;
-      align-items:center;justify-content:center;font-family:Arial,sans-serif;display:none}
+      display:none;align-items:center;justify-content:center;font-family:Arial,sans-serif}
     #close-btn.visible{display:flex}
-
     #page-counter{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);
       z-index:200;background:rgba(0,0,0,.65);color:#fff;border-radius:20px;
       padding:5px 18px;font-size:.85rem;font-family:Arial,sans-serif;
       letter-spacing:1px;display:none;white-space:nowrap}
     #page-counter.visible{display:block}
-
     #hint{position:fixed;bottom:50px;right:24px;z-index:200;
       color:rgba(255,255,255,.45);font-size:2rem;font-family:Arial,sans-serif;
       animation:hintBounce 1.2s infinite ease-in-out;pointer-events:none;display:none}
@@ -66,22 +64,18 @@
 <div id="hint">←</div>
 
 <script>
-/* ═══════════════════════════════════════════════════════════════
-   HQ VILÃO — Page Flip Engine v3
-
-   Forward flip  (swipe left):  crease starts at RIGHT edge → moves LEFT
-     • Right side of current page stays, left side peels as trapezoid flap
-     • Flap front = current page (mirrored/compressed)
-     • Reveals next page on the left as flap moves
-
-   Backward flip (swipe right): crease starts at LEFT edge → moves RIGHT
-     • Left side of current page stays, right side peels as trapezoid flap
-     • Flap front = current page (mirrored/compressed)
-     • Reveals prev page on the right as flap moves
-═══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════
+   HQ VILÃO  —  Page Flip Engine v4
+   Inspired by the turn.js / "20things" canvas technique:
+   • Bézier-curved fold line (paper bends, not a straight crease)
+   • Four rendering layers: back page | reveal page | fold flap | shadow
+   • Fold width driven by fold.progress (0=edge → 1=fully turned)
+   • Paper gradient simulates reflected light on the curl
+   • Works identically for forward (left) and backward (right) swipe
+═══════════════════════════════════════════════════════════════════ */
 
 const PAGES = ['capateste4.png','capa1.png','capateste2.png','capateste3.png'];
-const imgs  = PAGES.map(s => { const i=new Image(); i.src=s; return i; });
+const imgs  = PAGES.map(s=>{ const i=new Image(); i.src=s; return i; });
 
 let cur  = 0;
 let busy = false;
@@ -101,21 +95,31 @@ function resize(){
 }
 window.addEventListener('resize', resize);
 
-/* ── utils ── */
 function setCounter(){ counterEl.textContent=`${cur+1} / ${PAGES.length}`; }
-function updateHint(){ cur<PAGES.length-1?hintEl.classList.add('visible'):hintEl.classList.remove('visible'); }
+function updateHint(){ cur<PAGES.length-1 ? hintEl.classList.add('visible') : hintEl.classList.remove('visible'); }
 
+/* ── fit image rect ── */
 function imgRect(img){
-  const cw=canvas.width, ch=canvas.height;
-  const s=Math.min(cw/img.naturalWidth, ch/img.naturalHeight);
-  const w=img.naturalWidth*s, h=img.naturalHeight*s;
-  return {x:(cw-w)/2, y:(ch-h)/2, w, h};
+  if(!img||!img.naturalWidth) return {x:0,y:0,w:0,h:0};
+  const s = Math.min(canvas.width/img.naturalWidth, canvas.height/img.naturalHeight);
+  const w = img.naturalWidth*s, h = img.naturalHeight*s;
+  return { x:(canvas.width-w)/2, y:(canvas.height-h)/2, w, h };
 }
 
-function drawPage(img){
+function drawPage(img, clipX, clipW){
+  /* draw img, optionally clipped to a vertical band [clipX .. clipX+clipW] */
   if(!img||!img.complete||!img.naturalWidth) return;
-  const r=imgRect(img);
-  ctx.drawImage(img, r.x, r.y, r.w, r.h);
+  const r = imgRect(img);
+  if(clipW !== undefined){
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(clipX, 0, clipW, canvas.height);
+    ctx.clip();
+    ctx.drawImage(img, r.x, r.y, r.w, r.h);
+    ctx.restore();
+  } else {
+    ctx.drawImage(img, r.x, r.y, r.w, r.h);
+  }
 }
 
 function drawStatic(){
@@ -124,353 +128,288 @@ function drawStatic(){
   drawPage(imgs[cur]);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   drawFlip(t, fwd)
+/* ═══════════════════════════════════════════════════════════════════
+   CORE FLIP RENDERER
 
-   t    : 0..1  (progress of the flip)
-   fwd  : true = flipping forward (left swipe), false = backward (right swipe)
+   Parameters:
+     t      : 0..1  flip progress (0=just started, 1=fully done)
+     fwd    : true=going forward (swipe left), false=going back (swipe right)
 
-   The core geometry:
+   Geometry (forward flip):
+   ─────────────────────────
+   The page is turning from RIGHT side:
+     • foldX   = right side of page → moves toward left as t increases
+                 foldX = W - t*W  (starts at W, ends at 0)
+     • foldW   = width of the visible fold face (the curl)
+                 = W * 0.5 * (1-t)   — shrinks as it approaches spine
+     • strength = 1 - t  (how curved the fold is; max at start)
+     • The fold face is a quadrilateral with bezier-curved top and bottom
+       edges to simulate paper bending outward
 
-   FORWARD (fwd=true):
-     creaseX  = W*(1-t)          — starts at W, moves to 0
+   Layers (front to back):
+     1. [bottom] Next page — full, underneath everything
+     2. Current page clipped to the "already turned" left region  [0..foldX]
+        (this is actually wrong — we DON'T draw current on left; next shows through)
+        Actually: current page on RIGHT of fold, next page revealed on LEFT
+     3. Fold flap (trapezoid + curve) — the curling part, shows
+        a reflected/mirrored slice of current page
+     4. Shadows cast by the fold
 
-     Layer A: next page — full canvas underneath
-     Layer B: current page — clipped to [creaseX..W]  (right remainder)
-              with shadow gradient on its left edge
-     Layer C: flap — trapezoid to the LEFT of crease
-              left edge is compressed (perspX = creaseX - flapW*(1-t*k))
-              draws current page horizontally mirrored onto it
-              highlight on right edge (crease side)
-     Layer D: cast shadow on next page, just left of crease
-
-   BACKWARD (fwd=false):
-     creaseX  = W*t              — starts at 0, moves to W
-
-     Layer A: prev page — full canvas underneath
-     Layer B: current page — clipped to [0..creaseX]  (left remainder)
-              shadow on its right edge
-     Layer C: flap — trapezoid to the RIGHT of crease
-              right edge compressed (perspective on opposite side)
-              draws current page mirrored onto it
-              highlight on left edge (crease side)
-     Layer D: cast shadow on prev page, just right of crease
-═══════════════════════════════════════════════════════════════ */
+   Backward flip is mirrored: fold comes from LEFT side.
+═══════════════════════════════════════════════════════════════════ */
 
 function drawFlip(t, fwd){
-  const W=canvas.width, H=canvas.height;
+  const W = canvas.width, H = canvas.height;
   const nxtIdx = fwd ? cur+1 : cur-1;
   const curImg = imgs[cur];
   const nxtImg = imgs[nxtIdx];
 
-  /* background */
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle='#0d0d0d'; ctx.fillRect(0,0,W,H);
 
   if(fwd){
-    /* ── FORWARD FLIP ── */
+    /* ── FORWARD: fold comes from right edge, moves left ── */
+    const foldX    = W * (1-t);                  /* x of the fold axis */
+    const foldW    = Math.max(2, W * 0.45 * (1-t)); /* visible width of curl face */
+    const strength = 1-t;                         /* curvature intensity */
+    const outdent  = 28 * strength;               /* how much the curve bulges */
 
-    /* crease moves from right to left */
-    const creaseX = W*(1-t);
-
-    /* Layer A: next page underneath */
+    /* 1. NEXT PAGE — full, underneath */
     drawPage(nxtImg);
 
-    /* Layer B: remaining right portion of current page */
-    if(creaseX < W){
-      ctx.save();
-      ctx.beginPath(); ctx.rect(creaseX,0,W-creaseX,H); ctx.clip();
-      drawPage(curImg);
-
+    /* 2. CURRENT PAGE — only right portion (not yet turned) */
+    if(foldX < W){
+      drawPage(curImg, foldX, W - foldX);
       /* shadow on left edge of remaining portion */
-      const sw = Math.min(80, (W-creaseX)*0.25);
-      const sg = ctx.createLinearGradient(creaseX,0,creaseX+sw,0);
-      sg.addColorStop(0,'rgba(0,0,0,0.7)');
+      ctx.save();
+      ctx.beginPath(); ctx.rect(foldX, 0, W-foldX, H); ctx.clip();
+      const sg = ctx.createLinearGradient(foldX,0, foldX+Math.min(60,W*0.08),0);
+      sg.addColorStop(0,'rgba(0,0,0,0.65)');
       sg.addColorStop(1,'rgba(0,0,0,0)');
-      ctx.fillStyle=sg; ctx.fillRect(creaseX,0,sw,H);
+      ctx.fillStyle=sg; ctx.fillRect(foldX,0,Math.min(60,W*0.08),H);
       ctx.restore();
     } else {
       drawPage(curImg);
     }
 
-    /* Layer C: the peeling flap (trapezoid left of crease) */
-    /*
-       The flap represents the part of the current page that has bent away.
-       Its right edge = creaseX (full height)
-       Its left edge  = creaseX - flapW (compressed height = perspective)
+    /* 3. FOLD FLAP — the curling strip */
+    if(foldW > 1){
+      const flL = foldX - foldW;   /* left edge of fold face  */
+      const flR = foldX;            /* right edge = fold axis  */
 
-       flapW grows as crease moves left: flapW = t * W * 0.72
-       At t=1 crease is at 0, flapW ≈ 0.72W → flap fills most of screen
-    */
-    const flapW    = t * W * 0.72;
-    const flapR    = creaseX;
-    const flapL    = creaseX - flapW;
-
-    /* perspective: left edge height shrinks as t grows (paper curling away) */
-    const perspH   = H * (1 - t * 0.52);
-    const flapTopL = (H - perspH) / 2;
-    const flapBotL = H - flapTopL;
-    const flapTopR = 0;
-    const flapBotR = H;
-
-    if(flapW > 0.5){
+      /* Bézier-curved clipping path for the fold face
+         Top edge curves outward, bottom edge mirrors it */
       ctx.save();
       ctx.beginPath();
-      ctx.moveTo(flapR, flapTopR);
-      ctx.lineTo(flapR, flapBotR);
-      ctx.lineTo(flapL, flapBotL);
-      ctx.lineTo(flapL, flapTopL);
+      ctx.moveTo(flR, 0);
+      ctx.bezierCurveTo(
+        flR - foldW*0.3, outdent,
+        flL + foldW*0.3, outdent,
+        flL, outdent * 1.5
+      );
+      ctx.lineTo(flL, H - outdent*1.5);
+      ctx.bezierCurveTo(
+        flL + foldW*0.3, H - outdent,
+        flR - foldW*0.3, H - outdent,
+        flR, H
+      );
       ctx.closePath();
       ctx.clip();
 
-      /*
-        Draw current page onto flap — mirrored horizontally
-        The flap shows the BACK of the page being turned.
-        We map: the right portion of curImg (from creaseX onward)
-        compressed horizontally into flapW, mirrored.
-      */
-      if(curImg && curImg.complete && curImg.naturalWidth){
+      /* Fill with reflected portion of current page (squished = perspective) */
+      if(curImg&&curImg.complete&&curImg.naturalWidth){
         const r = imgRect(curImg);
-        /* what fraction of the image is still visible on the right side */
-        const imgCreaseFrac = (creaseX - r.x) / r.w;
-        const srcX = imgCreaseFrac * curImg.naturalWidth;
-        const srcW = curImg.naturalWidth - srcX; /* remaining right portion */
-
+        /* source: the right slice of curImg that matches this fold position */
+        const sx  = Math.max(0, (foldX - r.x) / r.w * curImg.naturalWidth);
+        const sw  = Math.max(1, curImg.naturalWidth - sx);
+        /* destination: map into fold face width, mirrored horizontally */
         ctx.save();
-        /* mirror: flip horizontally around creaseX */
-        ctx.translate(flapR, 0);
-        ctx.scale(-1, 1);
-        ctx.translate(0, 0);
-
-        /* draw the right portion of curImg, squished into flapW */
-        const destW = flapW;
-        const destH = H;
-        const destX = 0;
-        const destY = 0;
-
-        /* We want the image to appear to compress top/bottom at the far end.
-           Since we can't do true perspective in canvas 2D without hacks,
-           we draw the image normally then rely on the trapezoid clip
-           to give the perspective illusion. */
-        if(srcW > 0){
-          ctx.drawImage(
-            curImg,
-            Math.max(0, srcX), 0, Math.max(1, srcW), curImg.naturalHeight,
-            destX, r.y, destW, r.h
-          );
-        }
+        ctx.translate(flR, 0);
+        ctx.scale(-1, 1); /* mirror — back of page */
+        ctx.drawImage(curImg, sx, 0, sw, curImg.naturalHeight,
+          0, r.y, foldW, r.h);
         ctx.restore();
       }
 
-      /* darken the flap (it's the back of the page — slightly shaded) */
-      ctx.fillStyle='rgba(20,10,5,0.22)';
-      ctx.fillRect(flapL, 0, flapW, H);
-
-      /* highlight strip along crease (right edge) — light catching the bend */
-      const hlW = Math.min(22, flapW*0.12);
-      const hl = ctx.createLinearGradient(flapR-hlW,0,flapR,0);
-      hl.addColorStop(0,'rgba(255,255,255,0)');
-      hl.addColorStop(0.6,'rgba(255,255,220,0.28)');
-      hl.addColorStop(1,'rgba(255,255,255,0.55)');
-      ctx.fillStyle=hl; ctx.fillRect(flapR-hlW,0,hlW,H);
-
-      /* shadow on far left edge of flap */
-      const shW2 = Math.min(50, flapW*0.18);
-      const sh2 = ctx.createLinearGradient(flapL,0,flapL+shW2,0);
-      sh2.addColorStop(0,'rgba(0,0,0,0.75)');
-      sh2.addColorStop(1,'rgba(0,0,0,0)');
-      ctx.fillStyle=sh2; ctx.fillRect(flapL,0,shW2,H);
+      /* Paper sheen gradient over the fold face — light reflecting off curl */
+      const pg = ctx.createLinearGradient(flL, 0, flR, 0);
+      pg.addColorStop(0,   'rgba(0,0,0,0.25)');
+      pg.addColorStop(0.4, 'rgba(0,0,0,0.05)');
+      pg.addColorStop(0.7, 'rgba(255,255,255,0.12)');
+      pg.addColorStop(0.9, 'rgba(255,255,255,0.32)');
+      pg.addColorStop(1,   'rgba(255,255,255,0.18)');
+      ctx.fillStyle=pg; ctx.fillRect(flL-2,0,foldW+2,H);
 
       ctx.restore();
     }
 
-    /* Layer D: crease line */
-    if(t>0.005 && t<0.995 && creaseX>0){
-      const cl = ctx.createLinearGradient(0,0,0,H);
-      cl.addColorStop(0,'rgba(255,255,255,0.05)');
-      cl.addColorStop(0.5,'rgba(255,255,255,0.5)');
-      cl.addColorStop(1,'rgba(255,255,255,0.05)');
-      ctx.strokeStyle=cl; ctx.lineWidth=1.5;
-      ctx.beginPath(); ctx.moveTo(creaseX,0); ctx.lineTo(creaseX,H); ctx.stroke();
-    }
-
-    /* Layer E: cast shadow to the left on next page */
-    if(t>0.01 && creaseX>1){
+    /* 4. FOLD SHADOW cast onto next page to the left */
+    if(foldX > 2){
       ctx.save();
-      ctx.beginPath(); ctx.rect(0,0,creaseX,H); ctx.clip();
-      const castW = Math.min(90, creaseX*0.35);
-      const castX = Math.max(0, creaseX-castW);
-      const cg = ctx.createLinearGradient(castX,0,creaseX,0);
+      ctx.beginPath(); ctx.rect(0,0,foldX,H); ctx.clip();
+      const castW = Math.min(100, foldX * 0.4);
+      const cg = ctx.createLinearGradient(foldX-castW,0, foldX,0);
       cg.addColorStop(0,'rgba(0,0,0,0)');
-      cg.addColorStop(1,`rgba(0,0,0,${Math.min(0.5, t*0.6)})`);
-      ctx.fillStyle=cg; ctx.fillRect(castX,0,castW,H);
+      cg.addColorStop(1,`rgba(0,0,0,${0.5*strength})`);
+      ctx.fillStyle=cg; ctx.fillRect(foldX-castW,0,castW,H);
       ctx.restore();
+    }
+
+    /* 5. CREASE LINE — bright line at fold axis */
+    if(t>0.01 && t<0.99){
+      const cl = ctx.createLinearGradient(0,0,0,H);
+      cl.addColorStop(0,'rgba(255,255,255,0.04)');
+      cl.addColorStop(0.5,'rgba(255,255,255,0.55)');
+      cl.addColorStop(1,'rgba(255,255,255,0.04)');
+      ctx.strokeStyle=cl; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(foldX,0); ctx.lineTo(foldX,H); ctx.stroke();
     }
 
   } else {
-    /* ── BACKWARD FLIP ── */
+    /* ── BACKWARD: fold comes from left edge, moves right ── */
+    const foldX    = W * t;
+    const foldW    = Math.max(2, W * 0.45 * (1-t));
+    const strength = 1-t;
+    const outdent  = 28 * strength;
 
-    /* crease moves from left to right */
-    const creaseX = W * t;
-
-    /* Layer A: prev page underneath */
+    /* 1. PREV PAGE underneath */
     drawPage(nxtImg);
 
-    /* Layer B: remaining left portion of current page */
-    if(creaseX > 0){
+    /* 2. CURRENT PAGE — left portion remaining */
+    if(foldX > 0){
+      drawPage(curImg, 0, foldX);
+      /* shadow on right edge */
       ctx.save();
-      ctx.beginPath(); ctx.rect(0,0,creaseX,H); ctx.clip();
-      drawPage(curImg);
-
-      /* shadow on right edge of remaining left portion */
-      const sw = Math.min(80, creaseX*0.25);
-      const sg = ctx.createLinearGradient(creaseX-sw,0,creaseX,0);
+      ctx.beginPath(); ctx.rect(0,0,foldX,H); ctx.clip();
+      const sw = Math.min(60, W*0.08);
+      const sg = ctx.createLinearGradient(foldX-sw,0, foldX,0);
       sg.addColorStop(0,'rgba(0,0,0,0)');
-      sg.addColorStop(1,'rgba(0,0,0,0.7)');
-      ctx.fillStyle=sg; ctx.fillRect(creaseX-sw,0,sw,H);
+      sg.addColorStop(1,'rgba(0,0,0,0.65)');
+      ctx.fillStyle=sg; ctx.fillRect(foldX-sw,0,sw,H);
       ctx.restore();
     } else {
       drawPage(curImg);
     }
 
-    /* Layer C: the peeling flap (trapezoid right of crease) */
-    const flapW    = t * W * 0.72;
-    const flapL    = creaseX;
-    const flapR    = creaseX + flapW;
+    /* 3. FOLD FLAP */
+    if(foldW > 1){
+      const flL = foldX;
+      const flR = foldX + foldW;
 
-    /* perspective on the right (far) side — mirrors forward case */
-    const perspH   = H * (1 - t * 0.52);
-    const flapTopR = (H - perspH) / 2;
-    const flapBotR = H - flapTopR;
-    const flapTopL = 0;
-    const flapBotL = H;
-
-    if(flapW > 0.5){
       ctx.save();
       ctx.beginPath();
-      ctx.moveTo(flapL, flapTopL);
-      ctx.lineTo(flapL, flapBotL);
-      ctx.lineTo(flapR, flapBotR);
-      ctx.lineTo(flapR, flapTopR);
+      ctx.moveTo(flL, 0);
+      ctx.bezierCurveTo(
+        flL + foldW*0.3, outdent,
+        flR - foldW*0.3, outdent,
+        flR, outdent*1.5
+      );
+      ctx.lineTo(flR, H - outdent*1.5);
+      ctx.bezierCurveTo(
+        flR - foldW*0.3, H - outdent,
+        flL + foldW*0.3, H - outdent,
+        flL, H
+      );
       ctx.closePath();
       ctx.clip();
 
-      /* Draw current page onto flap — mirrored horizontally (back of page) */
-      if(curImg && curImg.complete && curImg.naturalWidth){
+      /* Reflected slice of current page */
+      if(curImg&&curImg.complete&&curImg.naturalWidth){
         const r = imgRect(curImg);
-        /* left portion of the image being peeled */
-        const imgCreaseFrac = (creaseX - r.x) / r.w;
-        const srcX = 0;
-        const srcW = imgCreaseFrac * curImg.naturalWidth;
-
+        const srcRight = Math.min(curImg.naturalWidth,
+          (foldX - r.x) / r.w * curImg.naturalWidth);
+        const sw2 = Math.max(1, srcRight);
+        /* mirror: left side reflects to the right */
         ctx.save();
-        /* mirror around creaseX */
-        ctx.translate(flapL, 0);
-        ctx.scale(1, 1); /* no horizontal flip — backward shows left side */
-
-        if(srcW > 0){
-          ctx.drawImage(
-            curImg,
-            0, 0, Math.max(1, srcW), curImg.naturalHeight,
-            0, r.y, flapW, r.h
-          );
-        }
+        ctx.translate(flL, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(curImg, 0, 0, sw2, curImg.naturalHeight,
+          -foldW, r.y, foldW, r.h);
         ctx.restore();
       }
 
-      /* darken the flap */
-      ctx.fillStyle='rgba(20,10,5,0.22)';
-      ctx.fillRect(flapL,0,flapW,H);
-
-      /* highlight on left edge (crease side) */
-      const hlW = Math.min(22, flapW*0.12);
-      const hl = ctx.createLinearGradient(flapL,0,flapL+hlW,0);
-      hl.addColorStop(0,'rgba(255,255,255,0.55)');
-      hl.addColorStop(0.4,'rgba(255,255,220,0.28)');
-      hl.addColorStop(1,'rgba(255,255,255,0)');
-      ctx.fillStyle=hl; ctx.fillRect(flapL,0,hlW,H);
-
-      /* shadow on far right edge of flap */
-      const shW2 = Math.min(50, flapW*0.18);
-      const sh2 = ctx.createLinearGradient(flapR-shW2,0,flapR,0);
-      sh2.addColorStop(0,'rgba(0,0,0,0)');
-      sh2.addColorStop(1,'rgba(0,0,0,0.75)');
-      ctx.fillStyle=sh2; ctx.fillRect(flapR-shW2,0,shW2,H);
+      /* Sheen */
+      const pg = ctx.createLinearGradient(flL, 0, flR, 0);
+      pg.addColorStop(0,   'rgba(255,255,255,0.18)');
+      pg.addColorStop(0.1, 'rgba(255,255,255,0.32)');
+      pg.addColorStop(0.3, 'rgba(255,255,255,0.12)');
+      pg.addColorStop(0.6, 'rgba(0,0,0,0.05)');
+      pg.addColorStop(1,   'rgba(0,0,0,0.25)');
+      ctx.fillStyle=pg; ctx.fillRect(flL,0,foldW+2,H);
 
       ctx.restore();
     }
 
-    /* crease line */
-    if(t>0.005 && t<0.995 && creaseX<W){
-      const cl = ctx.createLinearGradient(0,0,0,H);
-      cl.addColorStop(0,'rgba(255,255,255,0.05)');
-      cl.addColorStop(0.5,'rgba(255,255,255,0.5)');
-      cl.addColorStop(1,'rgba(255,255,255,0.05)');
-      ctx.strokeStyle=cl; ctx.lineWidth=1.5;
-      ctx.beginPath(); ctx.moveTo(creaseX,0); ctx.lineTo(creaseX,H); ctx.stroke();
-    }
-
-    /* cast shadow to the right on prev page */
-    if(t>0.01 && creaseX<W-1){
+    /* 4. Cast shadow to the right */
+    if(foldX < W-2){
       ctx.save();
-      ctx.beginPath(); ctx.rect(creaseX,0,W-creaseX,H); ctx.clip();
-      const castW = Math.min(90,(W-creaseX)*0.35);
-      const cg = ctx.createLinearGradient(creaseX,0,creaseX+castW,0);
-      cg.addColorStop(0,`rgba(0,0,0,${Math.min(0.5, t*0.6)})`);
+      ctx.beginPath(); ctx.rect(foldX,0,W-foldX,H); ctx.clip();
+      const castW = Math.min(100,(W-foldX)*0.4);
+      const cg = ctx.createLinearGradient(foldX,0, foldX+castW,0);
+      cg.addColorStop(0,`rgba(0,0,0,${0.5*strength})`);
       cg.addColorStop(1,'rgba(0,0,0,0)');
-      ctx.fillStyle=cg; ctx.fillRect(creaseX,0,castW,H);
+      ctx.fillStyle=cg; ctx.fillRect(foldX,0,castW,H);
       ctx.restore();
+    }
+
+    /* 5. Crease line */
+    if(t>0.01 && t<0.99){
+      const cl = ctx.createLinearGradient(0,0,0,H);
+      cl.addColorStop(0,'rgba(255,255,255,0.04)');
+      cl.addColorStop(0.5,'rgba(255,255,255,0.55)');
+      cl.addColorStop(1,'rgba(255,255,255,0.04)');
+      ctx.strokeStyle=cl; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(foldX,0); ctx.lineTo(foldX,H); ctx.stroke();
     }
   }
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ANIMATION — spring-based for natural deceleration
+   ANIMATION — lerp toward target at 60fps (turn.js style)
+   flip.progress += (flip.target - flip.progress) * speed
+   This gives natural ease-out without spring overshoot.
 ═══════════════════════════════════════════════════════════════ */
-let animRaf  = null;
-let animFwd  = true;
-let animT    = 0;   /* current t */
-let animVel  = 0;   /* velocity */
-let animTgt  = 0;   /* target t (0 or 1) */
-let animCb   = null;
+const flip = {
+  active:   false,
+  fwd:      true,
+  progress: 0,      /* 0..1 */
+  target:   0,
+  velocity: 0,
+  raf:      null,
+  onDone:   null
+};
 
-const SPRING_K    = 200;  /* stiffness */
-const SPRING_DAMP = 22;   /* damping */
-const SPRING_MASS = 1;
+const LERP_SPEED = 0.14;   /* higher = faster, lower = smoother */
+const LERP_SNAP  = 0.001;
 
-function springStep(now){
-  if(!animRaf) return;
-  const dt = Math.min(0.032, (now - (animStep._last||now)) / 1000);
-  animStep._last = now;
+function flipLoop(){
+  flip.raf = requestAnimationFrame(flipLoop);
 
-  const f = -SPRING_K*(animT - animTgt) - SPRING_DAMP*animVel;
-  animVel += (f / SPRING_MASS) * dt;
-  animT   += animVel * dt;
+  flip.progress += (flip.target - flip.progress) * LERP_SPEED;
 
-  /* clamp */
-  if(animTgt===1 && animT>0.999){ animT=1; animVel=0; }
-  if(animTgt===0 && animT<0.001){ animT=0; animVel=0; }
+  drawFlip(Math.max(0,Math.min(1,flip.progress)), flip.fwd);
 
-  drawFlip(Math.max(0,Math.min(1,animT)), animFwd);
-
-  if(Math.abs(animT-animTgt)<0.001 && Math.abs(animVel)<0.01){
-    animT = animTgt;
-    drawFlip(animT, animFwd);
-    animRaf = null;
-    if(animCb){ const cb=animCb; animCb=null; cb(); }
-  } else {
-    animRaf = requestAnimationFrame(springStep);
+  if(Math.abs(flip.target - flip.progress) < LERP_SNAP){
+    flip.progress = flip.target;
+    cancelAnimationFrame(flip.raf); flip.raf = null;
+    if(flip.target === 1){
+      const cb = flip.onDone;
+      flip.active = false; flip.progress = 0; flip.target = 0;
+      if(cb) cb();
+    } else {
+      flip.active = false;
+      drawStatic();
+    }
   }
 }
-function animStep(t,v,tgt,fwd,cb){
-  cancelAnimationFrame(animRaf);
-  animT   = t;
-  animVel = v;
-  animTgt = tgt;
-  animFwd = fwd;
-  animCb  = cb;
-  animStep._last = performance.now();
-  animRaf = requestAnimationFrame(springStep);
+
+function startFlipTo(fwd, target, onDone){
+  if(flip.raf){ cancelAnimationFrame(flip.raf); flip.raf=null; }
+  flip.active   = true;
+  flip.fwd      = fwd;
+  flip.target   = target;
+  flip.onDone   = onDone || null;
+  if(!flip.raf) flip.raf = requestAnimationFrame(flipLoop);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -481,13 +420,11 @@ function openReader(){
   readerEl.classList.add('active');
   closeBtn.classList.add('visible');
   counterEl.classList.add('visible');
-  resize();
-  setCounter(); updateHint();
-
-  /* zoom-in open anim */
-  let t=0; const t0=performance.now();
+  resize(); setCounter(); updateHint();
+  /* zoom open */
+  let t0=performance.now();
   function step(now){
-    t=Math.min(1,(now-t0)/500);
+    const t=Math.min(1,(now-t0)/480);
     const e=1-Math.pow(1-t,3);
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.fillStyle='#0d0d0d'; ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -496,14 +433,14 @@ function openReader(){
     ctx.translate(cx,cy); ctx.scale(s,s); ctx.translate(-cx,-cy);
     drawPage(imgs[0]); ctx.restore();
     if(t<1) requestAnimationFrame(step);
-    else{ drawStatic(); hintEl.classList.add('visible'); }
+    else { drawStatic(); hintEl.classList.add('visible'); }
   }
   requestAnimationFrame(step);
 }
 
 function closeReader(){
-  cancelAnimationFrame(animRaf); animRaf=null;
-  busy=false; dragging=false;
+  if(flip.raf){ cancelAnimationFrame(flip.raf); flip.raf=null; }
+  busy=false; dragging=false; flip.active=false; flip.progress=0; flip.target=0;
   readerEl.classList.remove('active');
   closeBtn.classList.remove('visible');
   counterEl.classList.remove('visible');
@@ -513,11 +450,7 @@ function closeReader(){
 /* ═══════════════════════════════════════════════════════════════
    DRAG / SWIPE
 ═══════════════════════════════════════════════════════════════ */
-let dragging = false;
-let startX   = 0;
-let startY   = 0;
-let dragFwd  = true;
-let dragT    = 0;   /* t during drag 0..1 */
+let dragging=false, startX=0, startY=0, dragFwd=true, dragT=0, dirLocked=false;
 
 readerEl.addEventListener('pointerdown', onDown, {passive:true});
 readerEl.addEventListener('pointermove', onMove, {passive:true});
@@ -526,54 +459,45 @@ readerEl.addEventListener('pointercancel', onUp);
 
 function onDown(e){
   if(busy) return;
-  cancelAnimationFrame(animRaf); animRaf=null;
+  if(flip.raf){ cancelAnimationFrame(flip.raf); flip.raf=null; }
+  flip.active=false;
   startX=e.clientX; startY=e.clientY;
-  dragging=true; dragT=0;
+  dragging=true; dragT=0; dirLocked=false;
 }
 
 function onMove(e){
   if(!dragging) return;
   const dx=e.clientX-startX, dy=e.clientY-startY;
-
-  if(Math.abs(dx)<4 && Math.abs(dy)<4) return;
-
-  /* lock direction on first significant move */
-  if(dragT===0 && Math.abs(dy)>Math.abs(dx)){ dragging=false; return; }
-
-  if(dragT===0){
+  if(!dirLocked){
+    if(Math.abs(dx)<5 && Math.abs(dy)<5) return;
+    if(Math.abs(dy)>Math.abs(dx)){ dragging=false; return; }
     dragFwd = dx < 0;
     if(dragFwd && cur>=PAGES.length-1){ dragging=false; return; }
     if(!dragFwd && cur<=0)            { dragging=false; return; }
+    dirLocked=true;
   }
-
-  const W = canvas.width;
-  dragT = Math.max(0, Math.min(1, Math.abs(dx)/W));
+  dragT = Math.max(0, Math.min(1, Math.abs(dx)/canvas.width));
+  /* drive flip.progress directly while dragging */
+  flip.progress = dragT;
+  flip.fwd      = dragFwd;
   drawFlip(dragT, dragFwd);
 }
 
 function onUp(e){
   if(!dragging){ dragging=false; return; }
   dragging=false;
+  if(!dirLocked){ drawStatic(); return; }
 
-  if(dragT===0){ drawStatic(); return; }
-
-  const COMMIT=0.26;
-
-  if(dragT>=COMMIT){
-    /* commit — spring toward 1 with current velocity */
-    const vel = (e.clientX - startX < 0 ? 1 : -1) *
-                Math.abs(e.clientX - startX) / (canvas.width * 0.016);
+  if(dragT >= 0.28){
     busy=true;
-    animStep(dragT, Math.abs(vel)*0.5, 1, dragFwd, ()=>{
+    flip.progress = dragT;
+    startFlipTo(dragFwd, 1, ()=>{
       cur += dragFwd ? 1 : -1;
-      busy=false; dragT=0;
-      drawStatic(); setCounter(); updateHint();
+      busy=false; setCounter(); updateHint();
     });
   } else {
-    /* cancel — spring back to 0 */
-    animStep(dragT, 0, 0, dragFwd, ()=>{
-      dragT=0; drawStatic();
-    });
+    flip.progress = dragT;
+    startFlipTo(dragFwd, 0, null);
   }
 }
 
@@ -583,12 +507,12 @@ function onUp(e){
 document.addEventListener('keydown', e=>{
   if(!readerEl.classList.contains('active')||busy) return;
   if(e.key==='ArrowRight'&&cur<PAGES.length-1){
-    busy=true;
-    animStep(0,8,1,true,()=>{ cur++; busy=false; drawStatic(); setCounter(); updateHint(); });
+    busy=true; flip.progress=0;
+    startFlipTo(true, 1, ()=>{ cur++; busy=false; setCounter(); updateHint(); });
   }
   if(e.key==='ArrowLeft'&&cur>0){
-    busy=true;
-    animStep(0,8,1,false,()=>{ cur--; busy=false; drawStatic(); setCounter(); updateHint(); });
+    busy=true; flip.progress=0;
+    startFlipTo(false, 1, ()=>{ cur--; busy=false; setCounter(); updateHint(); });
   }
   if(e.key==='Escape') closeReader();
 });
