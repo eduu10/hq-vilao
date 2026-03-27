@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>HQ Vilão</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Impact', 'Arial Black', sans-serif;
+    }
+
+    /* ─── LANDING PAGE ─── */
+    #landing {
+      position: fixed;
+      inset: 0;
+      background-image: url('capateste4.png');
+      background-size: cover;
+      background-position: center top;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      z-index: 10;
+    }
+
+    #landing::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.45) 100%);
+    }
+
+    .btn {
+      position: relative;
+      z-index: 1;
+      width: 240px;
+      padding: 16px 0;
+      border: none;
+      border-radius: 6px;
+      font-size: 1.25rem;
+      font-family: 'Impact', 'Arial Black', sans-serif;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: transform 0.12s, box-shadow 0.12s;
+      box-shadow: 4px 4px 0 #000, 0 0 0 3px #000;
+      outline: none;
+    }
+
+    .btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000, 0 0 0 3px #000; }
+
+    .btn-ler    { background: #ffe100; color: #000; }
+    .btn-ler:hover { background: #ffd000; transform: translate(-1px,-2px); box-shadow: 5px 6px 0 #000, 0 0 0 3px #000; }
+
+    .btn-doar   { background: #ff3c00; color: #fff; }
+    .btn-doar:hover { background: #e03300; transform: translate(-1px,-2px); box-shadow: 5px 6px 0 #000, 0 0 0 3px #000; }
+
+    .btn-comprar { background: #1a1aff; color: #fff; }
+    .btn-comprar:hover { background: #1111dd; transform: translate(-1px,-2px); box-shadow: 5px 6px 0 #000, 0 0 0 3px #000; }
+
+    /* ─── READER OVERLAY ─── */
+    #reader {
+      position: fixed;
+      inset: 0;
+      background: #111;
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    #reader.active { display: flex; }
+
+    /* page flip container */
+    #book {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      perspective: 1800px;
+    }
+
+    /* each page */
+    .page {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+
+    .page img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      user-select: none;
+      -webkit-user-drag: none;
+      pointer-events: none;
+    }
+
+    /* the draggable flap that peels off */
+    #flap {
+      position: absolute;
+      inset: 0;
+      transform-origin: left center;
+      transform-style: preserve-3d;
+      pointer-events: none;
+      z-index: 5;
+      will-change: transform;
+    }
+
+    #flap-front, #flap-back {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+
+    #flap-back {
+      transform: rotateY(180deg);
+      background: #111;
+    }
+
+    #flap-front img, #flap-back img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    /* shadow effect on flap */
+    #flap::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to right, rgba(0,0,0,0.35) 0%, transparent 30%);
+      pointer-events: none;
+      z-index: 6;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+    #flap.dragging::after { opacity: 1; }
+
+    /* close button */
+    #close-btn {
+      position: fixed;
+      top: 14px;
+      right: 18px;
+      z-index: 200;
+      background: rgba(0,0,0,0.75);
+      color: #ffe100;
+      border: 2px solid #ffe100;
+      border-radius: 50%;
+      width: 42px;
+      height: 42px;
+      font-size: 1.4rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Arial, sans-serif;
+      line-height: 1;
+      display: none;
+    }
+    #close-btn.visible { display: flex; }
+
+    /* page counter */
+    #page-counter {
+      position: fixed;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 200;
+      background: rgba(0,0,0,0.65);
+      color: #fff;
+      border-radius: 20px;
+      padding: 5px 18px;
+      font-size: 0.85rem;
+      font-family: Arial, sans-serif;
+      letter-spacing: 1px;
+      display: none;
+    }
+    #page-counter.visible { display: block; }
+
+    /* hint arrow */
+    #hint {
+      position: fixed;
+      bottom: 50px;
+      right: 24px;
+      z-index: 200;
+      color: rgba(255,255,255,0.55);
+      font-size: 2rem;
+      font-family: Arial, sans-serif;
+      animation: hintBounce 1.2s infinite ease-in-out;
+      pointer-events: none;
+      display: none;
+    }
+    #hint.visible { display: block; }
+    @keyframes hintBounce {
+      0%,100% { transform: translateX(0); }
+      50%      { transform: translateX(-8px); }
+    }
+
+    /* ─── OPEN ANIMATION ─── */
+    @keyframes openBook {
+      0%   { transform: scale(0.05) rotate(-8deg); opacity: 0; }
+      60%  { transform: scale(1.04) rotate(1deg);  opacity: 1; }
+      100% { transform: scale(1) rotate(0deg);     opacity: 1; }
+    }
+    .page-open-anim {
+      animation: openBook 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── LANDING ── -->
+<div id="landing">
+  <button class="btn btn-ler"     onclick="openReader()">Ler HQ</button>
+  <button class="btn btn-comprar" onclick="handleComprar()">Comprar</button>
+  <button class="btn btn-doar"    onclick="handleDoar()">Doar para o Projeto</button>
+</div>
+
+<!-- ── READER ── -->
+<div id="reader">
+  <div id="book">
+    <!-- current page (always visible under) -->
+    <div class="page" id="page-current">
+      <img id="img-current" src="" alt="">
+    </div>
+    <!-- next page (revealed as flap peels) -->
+    <div class="page" id="page-next">
+      <img id="img-next" src="" alt="">
+    </div>
+    <!-- flap (shows current page on front, prev on back) -->
+    <div id="flap">
+      <div id="flap-front"><img id="img-flap-front" src="" alt=""></div>
+      <div id="flap-back"><img id="img-flap-back"  src="" alt=""></div>
+    </div>
+  </div>
+</div>
+
+<button id="close-btn" onclick="closeReader()">✕</button>
+<div id="page-counter"></div>
+<div id="hint">←</div>
+
+<script>
+  // ── PAGES ──
+  const pages = [
+    'capateste4.png',
+    'capa1.png',
+    'capateste2.png',
+    'capateste3.png'
+  ];
+
+  let currentIndex = 0;
+  let isAnimating  = false;
+
+  // ── DOM ──
+  const readerEl    = document.getElementById('reader');
+  const closeBtnEl  = document.getElementById('close-btn');
+  const counterEl   = document.getElementById('page-counter');
+  const hintEl      = document.getElementById('hint');
+  const flapEl      = document.getElementById('flap');
+  const imgCurrent  = document.getElementById('img-current');
+  const imgNext     = document.getElementById('img-next');
+  const imgFlapF    = document.getElementById('img-flap-front');
+  const imgFlapB    = document.getElementById('img-flap-back');
+
+  // ── OPEN READER ──
+  function openReader() {
+    currentIndex = 0;
+    readerEl.classList.add('active');
+    closeBtnEl.classList.add('visible');
+    counterEl.classList.add('visible');
+    hintEl.classList.add('visible');
+    loadPage(0, true);
+  }
+
+  function closeReader() {
+    readerEl.classList.remove('active');
+    closeBtnEl.classList.remove('visible');
+    counterEl.classList.remove('visible');
+    hintEl.classList.remove('visible');
+    flapEl.style.transform = '';
+  }
+
+  function loadPage(idx, withAnim) {
+    imgCurrent.src = pages[idx];
+    imgFlapF.src   = pages[idx];
+    imgNext.src    = pages[idx + 1] || '';
+    imgFlapB.src   = pages[idx - 1] || '';
+    flapEl.style.transform = 'rotateY(0deg)';
+    updateCounter();
+
+    if (withAnim) {
+      imgCurrent.parentElement.classList.remove('page-open-anim');
+      void imgCurrent.parentElement.offsetWidth;
+      imgCurrent.parentElement.classList.add('page-open-anim');
+    }
+
+    // hide hint on last page
+    if (idx >= pages.length - 1) hintEl.classList.remove('visible');
+    else hintEl.classList.add('visible');
+  }
+
+  function updateCounter() {
+    counterEl.textContent = `${currentIndex + 1} / ${pages.length}`;
+  }
+
+  // ── DRAG / SWIPE ──
+  let startX = 0;
+  let startY = 0;
+  let dragging = false;
+  let dragDir = 0; // +1 = next, -1 = prev
+
+  function getClientX(e) { return e.touches ? e.touches[0].clientX : e.clientX; }
+  function getClientY(e) { return e.touches ? e.touches[0].clientY : e.clientY; }
+
+  readerEl.addEventListener('pointerdown', onDragStart, { passive: true });
+  readerEl.addEventListener('pointermove', onDragMove,  { passive: true });
+  readerEl.addEventListener('pointerup',   onDragEnd);
+  readerEl.addEventListener('pointercancel', onDragEnd);
+
+  function onDragStart(e) {
+    if (isAnimating) return;
+    startX   = e.clientX;
+    startY   = e.clientY;
+    dragging = true;
+    dragDir  = 0;
+    flapEl.classList.add('dragging');
+  }
+
+  function onDragMove(e) {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    // lock direction after 8px threshold
+    if (dragDir === 0) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      dragDir = Math.abs(dx) >= Math.abs(dy) ? (dx < 0 ? 1 : -1) : 0;
+      if (dragDir === 0) { dragging = false; return; }
+    }
+
+    if (dragDir === 1 && currentIndex >= pages.length - 1) return;
+    if (dragDir === -1 && currentIndex <= 0) return;
+
+    // map dx to rotation angle
+    const w = window.innerWidth;
+    // forward swipe (dx<0): flap rotates left (negative Y)
+    // back swipe (dx>0): previous page flap rotates right
+    let angle = 0;
+    if (dragDir === 1) {
+      angle = Math.max(-170, (dx / w) * 180);
+    } else {
+      angle = Math.min(170, (dx / w) * 180);
+    }
+
+    // prepare next/prev image under the flap
+    if (dragDir === 1) {
+      imgNext.src   = pages[currentIndex + 1] || '';
+      imgFlapF.src  = pages[currentIndex];
+      imgFlapB.src  = pages[currentIndex + 1] || '';
+    } else {
+      imgNext.src   = pages[currentIndex - 1] || '';
+      imgFlapF.src  = pages[currentIndex];
+      imgFlapB.src  = pages[currentIndex - 1] || '';
+    }
+
+    flapEl.style.transition = 'none';
+    flapEl.style.transform  = `rotateY(${angle}deg)`;
+  }
+
+  function onDragEnd(e) {
+    if (!dragging) return;
+    dragging = false;
+    flapEl.classList.remove('dragging');
+
+    const dx    = e.clientX - startX;
+    const w     = window.innerWidth;
+    const ratio = Math.abs(dx) / w;
+
+    // commit if dragged > 35% of screen
+    if (ratio > 0.35) {
+      const targetAngle = dragDir === 1 ? -180 : 180;
+      flapEl.style.transition = 'transform 0.35s cubic-bezier(0.4,0,0.2,1)';
+      flapEl.style.transform  = `rotateY(${targetAngle}deg)`;
+      isAnimating = true;
+      setTimeout(() => {
+        currentIndex += dragDir;
+        loadPage(currentIndex, false);
+        isAnimating = false;
+      }, 360);
+    } else {
+      // snap back
+      flapEl.style.transition = 'transform 0.25s ease';
+      flapEl.style.transform  = 'rotateY(0deg)';
+    }
+  }
+
+  // ── KEYBOARD ──
+  document.addEventListener('keydown', e => {
+    if (!readerEl.classList.contains('active')) return;
+    if (e.key === 'ArrowRight' && currentIndex < pages.length - 1) flipTo(currentIndex + 1);
+    if (e.key === 'ArrowLeft'  && currentIndex > 0)                flipTo(currentIndex - 1);
+    if (e.key === 'Escape') closeReader();
+  });
+
+  function flipTo(idx) {
+    if (isAnimating) return;
+    const dir   = idx > currentIndex ? -180 : 180;
+    imgFlapF.src = pages[currentIndex];
+    imgNext.src  = pages[idx];
+    flapEl.style.transition = 'transform 0.4s cubic-bezier(0.4,0,0.2,1)';
+    flapEl.style.transform  = `rotateY(${dir}deg)`;
+    isAnimating = true;
+    setTimeout(() => {
+      currentIndex = idx;
+      loadPage(currentIndex, false);
+      isAnimating = false;
+    }, 410);
+  }
+
+  // ── PLACEHOLDER ACTIONS ──
+  function handleDoar()    { alert('Em breve! Obrigado pelo apoio ❤️'); }
+  function handleComprar() { alert('Em breve! Fique ligado 🎉'); }
+</script>
+</body>
+</html>
