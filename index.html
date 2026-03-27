@@ -34,9 +34,7 @@
       font-weight:400;
       letter-spacing:3px;
       text-transform:uppercase;
-      color:#fff;
-      -webkit-text-stroke: 1.5px #000;
-      text-shadow: none;
+      color: transparent;
       background:linear-gradient(135deg, #c084fc 0%, #a855f7 35%, #7c3aed 65%, #c084fc 100%);
       clip-path:polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%);
       transition:filter .2s, transform .15s;
@@ -131,15 +129,33 @@
 <div id="landing">
   <div class="btn-wrap">
     <span class="btn-tag">// LEITURA</span>
-    <button class="btn" onclick="openReader()">Ler HQ</button>
+    <button class="btn" onclick="openReader()">
+      <svg width="100%" height="36" viewBox="0 0 220 36" preserveAspectRatio="xMidYMid meet">
+        <text x="50%" y="28" text-anchor="middle"
+          font-family="'Orbitron',sans-serif" font-weight="900" font-size="22"
+          fill="none" stroke="#000" stroke-width="1.2" letter-spacing="4">LER HQ</text>
+      </svg>
+    </button>
   </div>
   <div class="btn-wrap">
     <span class="btn-tag">// AQUISIÇÃO</span>
-    <button class="btn" onclick="handleComprar()">Comprar</button>
+    <button class="btn" onclick="handleComprar()">
+      <svg width="100%" height="36" viewBox="0 0 220 36" preserveAspectRatio="xMidYMid meet">
+        <text x="50%" y="28" text-anchor="middle"
+          font-family="'Orbitron',sans-serif" font-weight="900" font-size="22"
+          fill="none" stroke="#000" stroke-width="1.2" letter-spacing="4">COMPRAR</text>
+      </svg>
+    </button>
   </div>
   <div class="btn-wrap">
     <span class="btn-tag">// SUPORTE</span>
-    <button class="btn" onclick="handleDoar()">Doar para o Projeto</button>
+    <button class="btn" onclick="handleDoar()">
+      <svg width="100%" height="36" viewBox="0 0 220 36" preserveAspectRatio="xMidYMid meet">
+        <text x="50%" y="28" text-anchor="middle"
+          font-family="'Orbitron',sans-serif" font-weight="900" font-size="18"
+          fill="none" stroke="#000" stroke-width="1.2" letter-spacing="3">DOAR AO PROJETO</text>
+      </svg>
+    </button>
   </div>
 </div>
 
